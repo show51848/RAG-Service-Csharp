@@ -1,0 +1,36 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+_ReSharper*/
+*.DotSettings.user
+
+## Entity Framework migrations - keep source, ignore runtime artifacts
+*.db
+*.db-shm
+*.db-wal
+
+## Upload dir
+uploads/
+
+## ONNX models (binary, too large for git)
+*.onnx
+vocab.txt
+
+## Logs
+logs/
+*.log
+
+## Secrets
+appsettings.Production.json
+.env
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Test results
+TestResults/
+coverage/
