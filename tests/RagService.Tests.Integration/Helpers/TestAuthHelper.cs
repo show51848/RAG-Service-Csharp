@@ -15,10 +15,10 @@ public static class TestAuthHelper
         var email = $"user_{id}@test.com";
         const string password = "test-password-123!";
 
-        await client.PostAsJsonAsync("/auth/register", new { username, email, password });
+        await client.PostAsJsonAsync("/auth/register", new { username, email, password }, TestJson.Options);
 
-        var loginResp = await client.PostAsJsonAsync("/auth/login", new { username, password });
-        var login = await loginResp.Content.ReadFromJsonAsync<LoginResponse>();
+        var loginResp = await client.PostAsJsonAsync("/auth/login", new { username, password }, TestJson.Options);
+        var login = await loginResp.Content.ReadFromJsonAsync<LoginResponse>(TestJson.Options);
         return login!.AccessToken;
     }
 

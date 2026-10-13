@@ -106,7 +106,9 @@ builder.Services.AddScoped<IRetrievalService, RetrievalService>();
 builder.Services.AddScoped<ILlmService, LlmService>();
 
 // ── Controllers + Swagger ────────────────────────────────────────────────────
-builder.Services.AddControllers();
+// JSON 格式對齊 Python 版（snake_case 欄位 + 字串 enum），細節見 ApiJsonOptions
+builder.Services.AddControllers()
+    .AddJsonOptions(o => ApiJsonOptions.Apply(o.JsonSerializerOptions));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

@@ -40,7 +40,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var body = await response.Content.ReadFromJsonAsync<UploadResponse>();
+        var body = await response.Content.ReadFromJsonAsync<UploadResponse>(TestJson.Options);
         body!.DocId.Should().BeGreaterThan(0);
         body.Filename.Should().Be("test-document.txt");
         body.Status.Should().Be(DocumentStatus.Indexed);  // 同步處理，上傳後立即 indexed
@@ -106,7 +106,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
         var response = await client.GetAsync("/docs");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var docs = await response.Content.ReadFromJsonAsync<List<DocumentOut>>();
+        var docs = await response.Content.ReadFromJsonAsync<List<DocumentOut>>(TestJson.Options);
         docs!.Should().ContainSingle(d => d.OriginalName == "list-test.txt");
     }
 
@@ -131,7 +131,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
 
         // user2 的列表應該是空的（看不到 user1 的文件）
         var response = await client2.GetAsync("/docs");
-        var docs = await response.Content.ReadFromJsonAsync<List<DocumentOut>>();
+        var docs = await response.Content.ReadFromJsonAsync<List<DocumentOut>>(TestJson.Options);
         docs!.Should().BeEmpty();
     }
 
@@ -150,7 +150,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
         fc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
         content.Add(fc, "file", "to-delete.txt");
         var uploadResp = await client.PostAsync("/docs/upload", content);
-        var uploaded = await uploadResp.Content.ReadFromJsonAsync<UploadResponse>();
+        var uploaded = await uploadResp.Content.ReadFromJsonAsync<UploadResponse>(TestJson.Options);
 
         // 刪除
         var deleteResp = await client.DeleteAsync($"/docs/{uploaded!.DocId}");
@@ -158,7 +158,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
 
         // 確認已從列表中消失
         var listResp = await client.GetAsync("/docs");
-        var docs = await listResp.Content.ReadFromJsonAsync<List<DocumentOut>>();
+        var docs = await listResp.Content.ReadFromJsonAsync<List<DocumentOut>>(TestJson.Options);
         docs!.Should().NotContain(d => d.Id == uploaded.DocId);
     }
 
@@ -175,7 +175,7 @@ public class DocumentsIntegrationTests(RagServiceFactory factory)
         fc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
         content.Add(fc, "file", "private.txt");
         var uploadResp = await client1.PostAsync("/docs/upload", content);
-        var uploaded = await uploadResp.Content.ReadFromJsonAsync<UploadResponse>();
+        var uploaded = await uploadResp.Content.ReadFromJsonAsync<UploadResponse>(TestJson.Options);
 
         var client2 = NewAuthClient();
         var token2 = await TestAuthHelper.RegisterAndGetTokenAsync(client2);

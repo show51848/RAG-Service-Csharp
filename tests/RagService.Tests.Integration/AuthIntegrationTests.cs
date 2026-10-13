@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using RagService.Api.DTOs.Auth;
+using RagService.Tests.Integration.Helpers;
 
 namespace RagService.Tests.Integration;
 
@@ -33,11 +34,11 @@ public class AuthIntegrationTests(RagServiceFactory factory)
             username,
             email,
             password
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var body = await response.Content.ReadFromJsonAsync<RegisterResponse>();
+        var body = await response.Content.ReadFromJsonAsync<RegisterResponse>(TestJson.Options);
         body!.Username.Should().Be(username);
         body.Email.Should().Be(email);
         body.Id.Should().BeGreaterThan(0);
@@ -49,7 +50,7 @@ public class AuthIntegrationTests(RagServiceFactory factory)
         var (username, email, password) = NewUser();
 
         // 第一次成功
-        await _client.PostAsJsonAsync("/auth/register", new { username, email, password });
+        await _client.PostAsJsonAsync("/auth/register", new { username, email, password }, TestJson.Options);
 
         // 第二次用相同 username 但不同 email
         var response = await _client.PostAsJsonAsync("/auth/register", new
@@ -57,7 +58,7 @@ public class AuthIntegrationTests(RagServiceFactory factory)
             username,
             email = $"other_{email}",
             password
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -66,14 +67,14 @@ public class AuthIntegrationTests(RagServiceFactory factory)
     public async Task Register_DuplicateEmail_Returns409()
     {
         var (username, email, password) = NewUser();
-        await _client.PostAsJsonAsync("/auth/register", new { username, email, password });
+        await _client.PostAsJsonAsync("/auth/register", new { username, email, password }, TestJson.Options);
 
         var response = await _client.PostAsJsonAsync("/auth/register", new
         {
             username = $"other_{username}",
             email,
             password
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -84,17 +85,17 @@ public class AuthIntegrationTests(RagServiceFactory factory)
     public async Task Login_ValidCredentials_ReturnsJwtToken()
     {
         var (username, email, password) = NewUser();
-        await _client.PostAsJsonAsync("/auth/register", new { username, email, password });
+        await _client.PostAsJsonAsync("/auth/register", new { username, email, password }, TestJson.Options);
 
         var response = await _client.PostAsJsonAsync("/auth/login", new
         {
             username,
             password
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var body = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(TestJson.Options);
         body!.AccessToken.Should().NotBeNullOrEmpty();
         body.TokenType.Should().Be("bearer");
         // JWT 是三段 base64 用 . 分隔
@@ -105,13 +106,13 @@ public class AuthIntegrationTests(RagServiceFactory factory)
     public async Task Login_WrongPassword_Returns401()
     {
         var (username, email, password) = NewUser();
-        await _client.PostAsJsonAsync("/auth/register", new { username, email, password });
+        await _client.PostAsJsonAsync("/auth/register", new { username, email, password }, TestJson.Options);
 
         var response = await _client.PostAsJsonAsync("/auth/login", new
         {
             username,
             password = "wrong-password!"
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -124,7 +125,7 @@ public class AuthIntegrationTests(RagServiceFactory factory)
         {
             username = "nobody",
             password = "irrelevant"
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

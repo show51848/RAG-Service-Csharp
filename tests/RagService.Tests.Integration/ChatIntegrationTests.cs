@@ -26,7 +26,7 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         formContent.Add(fc, "file", filename);
 
         var resp = await client.PostAsync("/docs/upload", formContent);
-        var uploaded = await resp.Content.ReadFromJsonAsync<UploadResponse>();
+        var uploaded = await resp.Content.ReadFromJsonAsync<UploadResponse>(TestJson.Options);
         return uploaded!.DocId;
     }
 
@@ -47,11 +47,11 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         var response = await client.PostAsJsonAsync("/chat/query", new
         {
             question = "什麼是 RAG？"
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var body = await response.Content.ReadFromJsonAsync<QueryResponse>();
+        var body = await response.Content.ReadFromJsonAsync<QueryResponse>(TestJson.Options);
         body!.Answer.Should().Be(StubLlmService.FixedAnswer);
         body.Citations.Should().NotBeEmpty();
     }
@@ -71,10 +71,10 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         {
             question = "問題",
             docIds = new[] { docId1 }
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<QueryResponse>();
+        var body = await response.Content.ReadFromJsonAsync<QueryResponse>(TestJson.Options);
 
         // 回傳的 citations 應該只包含 docId1 的文件
         if (body!.Citations.Count > 0)
@@ -98,7 +98,7 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         {
             question = "問題",
             docIds = new[] { docId }
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -114,10 +114,10 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         var response = await client.PostAsJsonAsync("/chat/query", new
         {
             question = "沒有文件的問題"
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<QueryResponse>();
+        var body = await response.Content.ReadFromJsonAsync<QueryResponse>(TestJson.Options);
         // 沒有文件 → RetrievalService 回傳空 list → LlmService 回傳 no-doc 訊息
         body!.Citations.Should().BeEmpty();
     }
@@ -130,7 +130,7 @@ public class ChatIntegrationTests(RagServiceFactory factory)
         var response = await client.PostAsJsonAsync("/chat/query", new
         {
             question = "未認證的查詢"
-        });
+        }, TestJson.Options);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
