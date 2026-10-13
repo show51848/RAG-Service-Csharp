@@ -598,7 +598,7 @@
         body: JSON.stringify({ username: u, password: p }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || '登入失敗');
+      if (!res.ok) throw new Error(errorText(data, '登入失敗'));
       token = data.access_token;
       username = u;
       localStorage.setItem('rag_token', token);
@@ -625,7 +625,7 @@
         body: JSON.stringify({ username: u, email: e, password: p }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || '註冊失敗');
+      if (!res.ok) throw new Error(errorText(data, '註冊失敗'));
       showMsg('register-msg', 'success', '帳號建立成功！請切換至登入');
     } catch (e) {
       showMsg('register-msg', 'error', e.message);
@@ -756,7 +756,7 @@
         setTimeout(() => { status.textContent = ''; }, 5000);
         return;
       }
-      if (!res.ok) throw new Error(data.detail || '上傳失敗');
+      if (!res.ok) throw new Error(errorText(data, '上傳失敗'));
       status.textContent = data.duplicate
         ? `⚠️ ${data.filename} 已存在（略過重複索引）`
         : `✅ ${data.filename} 已成功索引`;
@@ -796,7 +796,7 @@
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || '查詢失敗');
+      if (!res.ok) throw new Error(errorText(data, '查詢失敗'));
       showAnswer(data);
     } catch (e) {
       showAnswerError(e.message);
@@ -841,6 +841,20 @@
   }
 
   // ── Helpers ──
+  // 從錯誤回應取出可讀訊息
+  // - 自訂錯誤（409/404 等）：{ detail: "..." }
+  // - ASP.NET 模型驗證失敗（400）：ProblemDetails { errors: { Password: [...] } }，沒有 detail
+  function errorText(data, fallback) {
+    if (data && data.detail) return data.detail;
+    if (data && data.errors) {
+      const hints = { username: '使用者名稱至少 3 個字', password: '密碼至少 8 個字', email: 'Email 格式不正確' };
+      return Object.entries(data.errors)
+        .map(([field, msgs]) => hints[field.toLowerCase()] || msgs.join(' '))
+        .join('；');
+    }
+    return fallback;
+  }
+
   function authHeader() {
     return { 'Authorization': `Bearer ${token}` };
   }
