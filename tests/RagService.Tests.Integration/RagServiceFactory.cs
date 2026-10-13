@@ -67,7 +67,8 @@ public class RagServiceFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 // LLM 服務已被 Stub 替換，這個值不會被真正使用
                 ["AppSettings:AnthropicApiKey"] = "test-placeholder-not-actually-used",
                 // 指向 Testcontainers 啟動的 Qdrant
-                ["AppSettings:QdrantHost"] = "localhost",
+                // 用 Hostname 而非寫死 "localhost"：測試本身跑在容器裡（例如 CI）時 localhost 會指向自己
+                ["AppSettings:QdrantHost"] = _qdrantContainer.Hostname,
                 ["AppSettings:QdrantPort"] = qdrantPort.ToString(),
                 // 使用獨立的 SQLite 檔案（支援真實 Migration）
                 ["AppSettings:DatabasePath"] = _dbPath,
