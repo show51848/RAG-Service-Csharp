@@ -11,6 +11,8 @@ services:
       - AppSettings__SecretKey=${SECRET_KEY}
       - AppSettings__AnthropicApiKey=${ANTHROPIC_API_KEY}
       - AppSettings__AppEnv=production
+      # SQLite 檔要放在 db_data volume 掛載的 /app/data 底下，否則重建容器資料就消失
+      - AppSettings__DatabasePath=/app/data/rag.db
       - AppSettings__AllowedOrigins__0=${ALLOWED_ORIGIN:-http://localhost:3000}
     volumes:
       - uploads_data:/app/uploads
