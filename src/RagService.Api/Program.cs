@@ -162,6 +162,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "RAG Service v1"));
 }
 
+// 提供 wwwroot/ 底下的前端頁面，對應 FastAPI 的 app.mount("/", StaticFiles(...))
+// UseDefaultFiles 讓 "/" 自動對應到 index.html，必須放在 UseStaticFiles 之前
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseCors();
 app.UseAuthentication();  // 必須在 UseAuthorization 之前
 app.UseAuthorization();

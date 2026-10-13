@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Service</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #e1e4e8;
+      --primary: #5b6af0;
+      --primary-dark: #4757e0;
+      --danger: #e05555;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --score-high: #16a34a;
+      --score-mid: #ca8a04;
+      --score-low: #dc2626;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Auth Screen ── */
+    #auth-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.06);
+    }
+
+    .auth-card h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .auth-card .subtitle {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 28px;
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 500;
+      transition: all .15s;
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+    }
+
+    .form-group { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: .85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    input[type=text], input[type=email], input[type=password] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    input:focus { border-color: var(--primary); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 5px 10px;
+      font-size: .8rem;
+    }
+
+    .btn-danger:hover { background: #fef2f2; }
+
+    .msg {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: .875rem;
+      display: none;
+    }
+
+    .msg.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; display: block; }
+    .msg.success { background: #f0fdf4; color: #166534; border: 1px solid #86efac; display: block; }
+
+    /* ── App Screen ── */
+    #app-screen { display: none; flex-direction: column; min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo { font-weight: 700; font-size: 1.1rem; }
+    .logo span { color: var(--primary); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .user-badge {
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: .85rem;
+      cursor: pointer;
+      color: var(--text);
+      transition: background .15s;
+    }
+
+    .btn-logout:hover { background: var(--bg); }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      flex: 1;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sidebar h2 {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      position: relative;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--primary);
+      background: #f5f6ff;
+    }
+
+    .upload-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon { font-size: 2rem; margin-bottom: 8px; }
+
+    .upload-zone p {
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    .upload-zone strong { color: var(--primary); }
+
+    .upload-status {
+      font-size: .82rem;
+      color: var(--muted);
+      text-align: center;
+      min-height: 20px;
+    }
+
+    .doc-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+
+    .doc-item:hover { border-color: var(--primary); background: #f5f6ff; }
+    .doc-item.selected { border-color: var(--primary); background: #eef0ff; }
+
+    .doc-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+    .doc-info { flex: 1; min-width: 0; }
+
+    .doc-name {
+      font-size: .85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .doc-meta { font-size: .75rem; color: var(--muted); }
+
+    .doc-status {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-size: .7rem;
+      font-weight: 600;
+    }
+
+    .status-indexed  { background: #dcfce7; color: #15803d; }
+    .status-pending  { background: #fef9c3; color: #854d0e; }
+    .status-failed   { background: #fee2e2; color: #b91c1c; }
+
+    .doc-select-hint {
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    /* ── Chat ── */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      padding: 28px;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .chat-area h2 { font-size: 1rem; font-weight: 700; }
+
+    .question-box {
+      display: flex;
+      gap: 10px;
+    }
+
+    .question-box textarea {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: .95rem;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    .question-box textarea:focus { border-color: var(--primary); }
+
+    .btn-ask {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 22px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      align-self: flex-end;
+      height: 44px;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+
+    .btn-ask:hover { background: var(--primary-dark); }
+    .btn-ask:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* Answer */
+    .answer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+    }
+
+    .answer-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .answer-body {
+      padding: 20px;
+      font-size: .95rem;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Citations */
+    .citations-section {
+      display: none;
+    }
+
+    .citations-section h3 {
+      font-size: .9rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+
+    .citation-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .citation-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .citation-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .citation-filename {
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .citation-score {
+      font-size: .78rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    .citation-chunk {
+      font-size: .83rem;
+      color: var(--muted);
+      line-height: 1.6;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 700px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Auth Screen ══ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <h1>RAG Service</h1>
+    <p class="subtitle">上傳文件，用自然語言提問</p>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('login')">登入</button>
+      <button class="tab-btn" onclick="switchTab('register')">註冊</button>
+    </div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <div class="form-group">
+        <label for="login-username">使用者名稱</label>
+        <input id="login-username" type="text" placeholder="alice" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">密碼</label>
+        <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" onclick="login()" id="btn-login">登入</button>
+      <div id="login-msg" class="msg"></div>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" style="display:none">
+      <div class="form-group">
+        <label for="reg-username">使用者名稱</label>
+        <input id="reg-username" type="text" placeholder="alice" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="reg-email">Email</label>
+        <input id="reg-email" type="email" placeholder="alice@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="reg-password">密碼</label>
+        <input id="reg-password" type="password" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <button class="btn btn-primary" onclick="register()" id="btn-register">建立帳號</button>
+      <div id="register-msg" class="msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ App Screen ══ -->
+<div id="app-screen">
+  <header>
+    <div class="logo">RAG <span>Service</span></div>
+    <div class="header-right">
+      <span class="user-badge" id="header-username"></span>
+      <button class="btn-logout" onclick="logout()">登出</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Sidebar: Documents -->
+    <aside class="sidebar">
+      <div>
+        <h2>📂 我的文件</h2>
+      </div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept=".pdf,.txt" onchange="uploadFile(this)" />
+        <div class="upload-icon">📄</div>
+        <p><strong>點擊上傳</strong>或拖放文件</p>
+        <p style="margin-top:4px">支援 PDF、TXT</p>
+      </div>
+      <div class="upload-status" id="upload-status"></div>
+
+      <div>
+        <p class="doc-select-hint" style="margin-bottom:10px">點選文件來篩選問答範圍（不選則搜尋全部）</p>
+        <div class="doc-list" id="doc-list">
+          <div class="empty-state">尚無文件</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main: Chat -->
+    <main class="chat-area">
+      <h2>💬 問答</h2>
+
+      <div class="question-box">
+        <textarea id="question-input" placeholder="輸入你的問題，例如：這份文件的主要結論是什麼？" onkeydown="handleKey(event)"></textarea>
+        <button class="btn-ask" id="btn-ask" onclick="askQuestion()">送出</button>
+      </div>
+
+      <div class="answer-card" id="answer-card">
+        <div class="answer-header">🤖 回答</div>
+        <div class="answer-body" id="answer-body"></div>
+      </div>
+
+      <div class="citations-section" id="citations-section">
+        <h3>📎 引用來源</h3>
+        <div class="citation-list" id="citation-list"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  // 前端由 API 本身（wwwroot + UseStaticFiles）提供，同源呼叫，不需要寫死網址也沒有 CORS 問題
+  const API = '';
+  let token = localStorage.getItem('rag_token') || '';
+  let username = localStorage.getItem('rag_username') || '';
+  let selectedDocIds = new Set();
+
+  // ── Init ──
+  if (token) showApp();
+
+  // ── Tab switch ──
+  function switchTab(tab) {
+    document.getElementById('tab-login').style.display    = tab === 'login'    ? '' : 'none';
+    document.getElementById('tab-register').style.display = tab === 'register' ? '' : 'none';
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0) === (tab === 'login'));
+    });
+  }
+
+  // ── Auth ──
+  async function login() {
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+    if (!u || !p) return showMsg('login-msg', 'error', '請填寫使用者名稱和密碼');
+
+    setLoading('btn-login', true, '登入中…');
+    try {
+      // C# 版登入收 JSON body（Python 版是 OAuth2 form data）
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || '登入失敗');
+      token = data.access_token;
+      username = u;
+      localStorage.setItem('rag_token', token);
+      localStorage.setItem('rag_username', username);
+      showApp();
+    } catch (e) {
+      showMsg('login-msg', 'error', e.message);
+    } finally {
+      setLoading('btn-login', false, '登入');
+    }
+  }
+
+  async function register() {
+    const u = document.getElementById('reg-username').value.trim();
+    const e = document.getElementById('reg-email').value.trim();
+    const p = document.getElementById('reg-password').value;
+    if (!u || !e || !p) return showMsg('register-msg', 'error', '請填寫所有欄位');
+
+    setLoading('btn-register', true, '建立中…');
+    try {
+      const res = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, email: e, password: p }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || '註冊失敗');
+      showMsg('register-msg', 'success', '帳號建立成功！請切換至登入');
+    } catch (e) {
+      showMsg('register-msg', 'error', e.message);
+    } finally {
+      setLoading('btn-register', false, '建立帳號');
+    }
+  }
+
+  function logout() {
+    token = '';
+    username = '';
+    localStorage.removeItem('rag_token');
+    localStorage.removeItem('rag_username');
+    selectedDocIds.clear();
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('answer-card').style.display = 'none';
+    document.getElementById('citations-section').style.display = 'none';
+  }
+
+  // ── App ──
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    document.getElementById('header-username').textContent = username;
+    loadDocs();
+  }
+
+  // ── Documents ──
+  async function loadDocs() {
+    try {
+      const res = await fetch(`${API}/docs`, { headers: authHeader() });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        document.getElementById('doc-list').innerHTML =
+          `<div class="empty-state" style="color:var(--danger)">載入失敗：${esc(err.detail || res.status)}</div>`;
+        return;
+      }
+      const docs = await res.json();
+      renderDocs(docs);
+    } catch (e) {
+      document.getElementById('doc-list').innerHTML =
+        `<div class="empty-state" style="color:var(--danger)">無法連線至伺服器</div>`;
+    }
+  }
+
+  function renderDocs(docs) {
+    const list = document.getElementById('doc-list');
+    if (docs.length === 0) {
+      list.innerHTML = '<div class="empty-state">尚無文件<br>請上傳 PDF 或 TXT</div>';
+      return;
+    }
+    list.innerHTML = docs.map(d => `
+      <div class="doc-item ${selectedDocIds.has(d.id) ? 'selected' : ''}"
+           id="doc-${d.id}" onclick="toggleDoc(${d.id})">
+        <div class="doc-icon">${d.original_name.endsWith('.pdf') ? '📕' : '📝'}</div>
+        <div class="doc-info">
+          <div class="doc-name" title="${esc(d.original_name)}">${esc(d.original_name)}</div>
+          <div class="doc-meta">
+            <span class="doc-status status-${d.status}">${statusLabel(d.status)}</span>
+            ${d.chunk_count ? ` · ${d.chunk_count} 片段` : ''}
+          </div>
+        </div>
+        <button class="btn btn-danger" onclick="deleteDoc(event,${d.id})" title="刪除">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function toggleDoc(id) {
+    if (selectedDocIds.has(id)) selectedDocIds.delete(id);
+    else selectedDocIds.add(id);
+    document.querySelectorAll('.doc-item').forEach(el => {
+      const did = parseInt(el.id.replace('doc-', ''));
+      el.classList.toggle('selected', selectedDocIds.has(did));
+    });
+  }
+
+  async function deleteDoc(evt, id) {
+    evt.stopPropagation();
+    if (!confirm('確認刪除這份文件？')) return;
+    try {
+      const res = await fetch(`${API}/docs/${id}`, { method: 'DELETE', headers: authHeader() });
+      if (!res.ok && res.status !== 204) throw new Error();
+      selectedDocIds.delete(id);
+      loadDocs();
+    } catch {
+      alert('刪除失敗，請稍後再試');
+    }
+  }
+
+  // ── Upload ──
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) doUpload(file);
+  });
+
+  function uploadFile(input) {
+    if (input.files[0]) doUpload(input.files[0]);
+    input.value = '';
+  }
+
+  async function doUpload(file) {
+    const status = document.getElementById('upload-status');
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf', 'txt'].includes(ext)) {
+      status.textContent = '❌ 僅支援 PDF 和 TXT';
+      return;
+    }
+    status.textContent = `⏳ 正在上傳並索引 ${file.name}…`;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(`${API}/docs/upload`, {
+        method: 'POST',
+        headers: authHeader(),
+        body: fd,
+      });
+      const data = await res.json();
+      // C# 版重複上傳回 409（Python 版回 200 + duplicate=true）
+      if (res.status === 409) {
+        status.textContent = `⚠️ ${file.name} 已存在（略過重複索引）`;
+        setTimeout(() => { status.textContent = ''; }, 5000);
+        return;
+      }
+      if (!res.ok) throw new Error(data.detail || '上傳失敗');
+      status.textContent = data.duplicate
+        ? `⚠️ ${data.filename} 已存在（略過重複索引）`
+        : `✅ ${data.filename} 已成功索引`;
+      loadDocs();
+    } catch (e) {
+      status.textContent = `❌ ${e.message}`;
+    }
+    setTimeout(() => { status.textContent = ''; }, 5000);
+  }
+
+  // ── Chat ──
+  function handleKey(e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      askQuestion();
+    }
+  }
+
+  async function askQuestion() {
+    const q = document.getElementById('question-input').value.trim();
+    if (!q) return;
+
+    const btn = document.getElementById('btn-ask');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+
+    document.getElementById('answer-card').style.display = 'none';
+    document.getElementById('citations-section').style.display = 'none';
+
+    const body = { question: q };
+    if (selectedDocIds.size > 0) body.doc_ids = [...selectedDocIds];
+
+    try {
+      const res = await fetch(`${API}/chat/query`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || '查詢失敗');
+      showAnswer(data);
+    } catch (e) {
+      showAnswerError(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '送出';
+    }
+  }
+
+  function showAnswer(data) {
+    const card = document.getElementById('answer-card');
+    const body = document.getElementById('answer-body');
+    card.style.display = 'block';
+    body.textContent = data.answer;
+
+    const citSection = document.getElementById('citations-section');
+    const citList    = document.getElementById('citation-list');
+    if (data.citations && data.citations.length > 0) {
+      citSection.style.display = 'block';
+      citList.innerHTML = data.citations.map((c, i) => {
+        const pct   = Math.round(c.score * 100);
+        const color = pct >= 80 ? 'var(--score-high)' : pct >= 60 ? 'var(--score-mid)' : 'var(--score-low)';
+        return `
+          <div class="citation-card">
+            <div class="citation-meta">
+              <span class="citation-filename">📎 ${esc(c.filename)}</span>
+              <span class="citation-score" style="background:${color}1a;color:${color}">相關度 ${pct}%</span>
+            </div>
+            <div class="citation-chunk">${esc(c.chunk)}</div>
+          </div>`;
+      }).join('');
+    } else {
+      citSection.style.display = 'none';
+    }
+  }
+
+  function showAnswerError(msg) {
+    const card = document.getElementById('answer-card');
+    const body = document.getElementById('answer-body');
+    card.style.display = 'block';
+    body.innerHTML = `<span style="color:var(--danger)">❌ ${esc(msg)}</span>`;
+  }
+
+  // ── Helpers ──
+  function authHeader() {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+
+  function showMsg(id, type, text) {
+    const el = document.getElementById(id);
+    el.className = `msg ${type}`;
+    el.textContent = text;
+  }
+
+  function setLoading(id, loading, label) {
+    const btn = document.getElementById(id);
+    btn.disabled = loading;
+    btn.innerHTML = loading ? `<span class="spinner" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> ${label}` : label;
+  }
+
+  function statusLabel(s) {
+    return { indexed: '已索引', pending: '處理中', processing: '處理中', failed: '失敗' }[s] || s;
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
